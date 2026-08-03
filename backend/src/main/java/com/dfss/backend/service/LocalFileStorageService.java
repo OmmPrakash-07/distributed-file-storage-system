@@ -1,0 +1,172 @@
+package com.dfss.backend.service;
+
+import com.dfss.backend.dto.FileUploadResponse;
+import com.dfss.backend.dto.StoredFileResponse;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Stream;
+
+@Service
+public class LocalFileStorageService {
+
+    private final Path uploadDirectory;
+
+    public LocalFileStorageService(
+            @Value("${file.upload-dir:uploads}") String uploadDirectory) throws IOException {
+
+        this.uploadDirectory = Path.of(uploadDirectory)
+                .toAbsolutePath()
+                .normalize();
+
+        Files.createDirectories(this.uploadDirectory);
+    }
+
+    public FileUploadResponse store(MultipartFile file) throws IOException {
+
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Please select a file to upload");
+        }
+
+        String originalFileName = file.getOriginalFilename();
+
+        if (originalFileName == null || originalFileName.isBlank()) {
+            originalFileName = "unknown-file";
+        }
+
+        originalFileName = Path.of(originalFileName)
+                .getFileName()
+                .toString();
+
+        String fileId = UUID.randomUUID().toString();
+        String extension = getExtension(originalFileName);
+        String storedFileName = fileId + extension;
+
+        Path destination = uploadDirectory
+                .resolve(storedFileName)
+                .normalize();
+
+        if (!destination.startsWith(uploadDirectory)) {
+            throw new IllegalArgumentException("Invalid file name");
+        }
+
+        Files.copy(
+                file.getInputStream(),
+                destination,
+                StandardCopyOption.REPLACE_EXISTING);
+
+        return new FileUploadResponse(
+                fileId,
+                originalFileName,
+                storedFileName,
+                file.getContentType(),
+                file.getSize(),
+                "File uploaded successfully");
+    }
+
+    public List<StoredFileResponse> listFiles() throws IOException {
+
+        try (Stream<Path> files = Files.list(uploadDirectory)) {
+
+            return files
+                    .filter(Files::isRegularFile)
+                    .map(path -> {
+                        try {
+                            return new StoredFileResponse(
+                                    path.getFileName().toString(),
+                                    Files.size(path));
+                        } catch (IOException exception) {
+                            throw new UncheckedIOException(exception);
+                        }
+                    })
+                    .toList();
+
+        } catch (UncheckedIOException exception) {
+            throw exception.getCause();
+        }
+    }
+
+    public Resource loadFile(String storedFileName) throws IOException {
+
+        String safeFileName = Path.of(storedFileName)
+                .getFileName()
+                .toString();
+
+        if (!safeFileName.equals(storedFileName)) {
+            throw new IllegalArgumentException("Invalid file name");
+        }
+
+        Path filePath = uploadDirectory
+                .resolve(safeFileName)
+                .normalize();
+
+        if (!filePath.startsWith(uploadDirectory)
+                || !Files.exists(filePath)
+                || !Files.isRegularFile(filePath)) {
+
+            throw new FileNotFoundException("File not found");
+        }
+
+        try {
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (!resource.isReadable()) {
+                throw new FileNotFoundException("File is not readable");
+            }
+
+            return resource;
+
+        } catch (MalformedURLException exception) {
+            throw new IOException("Invalid file path", exception);
+        }
+    }
+
+    public void deleteFile(String storedFileName) throws IOException {
+
+        String safeFileName = Path.of(storedFileName)
+                .getFileName()
+                .toString();
+
+        if (!safeFileName.equals(storedFileName)) {
+            throw new IllegalArgumentException("Invalid file name");
+        }
+
+        Path filePath = uploadDirectory
+                .resolve(safeFileName)
+                .normalize();
+
+        if (!filePath.startsWith(uploadDirectory)) {
+            throw new IllegalArgumentException("Invalid file path");
+        }
+
+        if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
+            throw new FileNotFoundException("File not found");
+        }
+
+        Files.delete(filePath);
+    }
+
+    private String getExtension(String fileName) {
+
+        int dotPosition = fileName.lastIndexOf('.');
+
+        if (dotPosition < 0 || dotPosition == fileName.length() - 1) {
+            return "";
+        }
+
+        return fileName.substring(dotPosition);
+    }
+}
