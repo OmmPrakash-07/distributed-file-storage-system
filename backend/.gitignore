@@ -31,3 +31,17 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Maven build
+backend/target/
+
+# Local H2 database
+backend/data/
+*.mv.db
+*.trace.db
+
+# Locally uploaded files
+backend/uploads/
+
+# Local test files
+metadata-test.txt

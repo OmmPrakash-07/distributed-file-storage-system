@@ -1,7 +1,6 @@
 package com.dfss.backend.controller;
 
 import com.dfss.backend.dto.FileUploadResponse;
-import com.dfss.backend.dto.StoredFileResponse;
 import com.dfss.backend.service.LocalFileStorageService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -17,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import com.dfss.backend.dto.FileMetadataResponse;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -27,85 +27,84 @@ import java.util.Map;
 @RequestMapping("/api/files")
 public class FileController {
 
-    private final LocalFileStorageService fileStorageService;
+        private final LocalFileStorageService fileStorageService;
 
-    public FileController(
-            LocalFileStorageService fileStorageService) {
-        this.fileStorageService = fileStorageService;
-    }
+        public FileController(
+                        LocalFileStorageService fileStorageService) {
+                this.fileStorageService = fileStorageService;
+        }
 
-    @PostMapping("/upload")
-    public ResponseEntity<FileUploadResponse> uploadFile(
-            @RequestParam("file") MultipartFile file) throws IOException {
+        @PostMapping("/upload")
+        public ResponseEntity<FileUploadResponse> uploadFile(
+                        @RequestParam("file") MultipartFile file) throws IOException {
 
-        FileUploadResponse response = fileStorageService.store(file);
+                FileUploadResponse response = fileStorageService.store(file);
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
-    }
+                return ResponseEntity
+                                .status(HttpStatus.CREATED)
+                                .body(response);
+        }
 
-    @GetMapping
-    public ResponseEntity<List<StoredFileResponse>> listFiles()
-            throws IOException {
+        @GetMapping
+        public ResponseEntity<List<FileMetadataResponse>> listFiles() {
 
-        return ResponseEntity.ok(
-                fileStorageService.listFiles());
-    }
+                return ResponseEntity.ok(
+                                fileStorageService.listMetadata());
+        }
 
-    @GetMapping("/{storedFileName:.+}")
-    public ResponseEntity<Resource> downloadFile(
-            @PathVariable String storedFileName) throws IOException {
+        @GetMapping("/{storedFileName:.+}")
+        public ResponseEntity<Resource> downloadFile(
+                        @PathVariable String storedFileName) throws IOException {
 
-        Resource resource = fileStorageService.loadFile(storedFileName);
+                Resource resource = fileStorageService.loadFile(storedFileName);
 
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" +
-                                resource.getFilename() +
-                                "\"")
-                .body(resource);
-    }
+                return ResponseEntity.ok()
+                                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                                .header(
+                                                HttpHeaders.CONTENT_DISPOSITION,
+                                                "attachment; filename=\"" +
+                                                                resource.getFilename() +
+                                                                "\"")
+                                .body(resource);
+        }
 
-    @DeleteMapping("/{storedFileName:.+}")
-    public ResponseEntity<Map<String, Object>> deleteFile(
-            @PathVariable String storedFileName) throws IOException {
+        @DeleteMapping("/{storedFileName:.+}")
+        public ResponseEntity<Map<String, Object>> deleteFile(
+                        @PathVariable String storedFileName) throws IOException {
 
-        fileStorageService.deleteFile(storedFileName);
+                fileStorageService.deleteFile(storedFileName);
 
-        return ResponseEntity.ok(
-                Map.of(
-                        "success", true,
-                        "message", "File deleted successfully",
-                        "storedFileName", storedFileName));
-    }
+                return ResponseEntity.ok(
+                                Map.of(
+                                                "success", true,
+                                                "message", "File deleted successfully",
+                                                "storedFileName", storedFileName));
+        }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidFile(
-            IllegalArgumentException exception) {
-        return ResponseEntity.badRequest().body(
-                Map.of(
-                        "success", false,
-                        "message", exception.getMessage()));
-    }
+        @ExceptionHandler(IllegalArgumentException.class)
+        public ResponseEntity<Map<String, Object>> handleInvalidFile(
+                        IllegalArgumentException exception) {
+                return ResponseEntity.badRequest().body(
+                                Map.of(
+                                                "success", false,
+                                                "message", exception.getMessage()));
+        }
 
-    @ExceptionHandler(FileNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleFileNotFound(
-            FileNotFoundException exception) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                Map.of(
-                        "success", false,
-                        "message", exception.getMessage()));
-    }
+        @ExceptionHandler(FileNotFoundException.class)
+        public ResponseEntity<Map<String, Object>> handleFileNotFound(
+                        FileNotFoundException exception) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                                Map.of(
+                                                "success", false,
+                                                "message", exception.getMessage()));
+        }
 
-    @ExceptionHandler(IOException.class)
-    public ResponseEntity<Map<String, Object>> handleStorageError(
-            IOException exception) {
-        return ResponseEntity.internalServerError().body(
-                Map.of(
-                        "success", false,
-                        "message", "File operation failed"));
-    }
+        @ExceptionHandler(IOException.class)
+        public ResponseEntity<Map<String, Object>> handleStorageError(
+                        IOException exception) {
+                return ResponseEntity.internalServerError().body(
+                                Map.of(
+                                                "success", false,
+                                                "message", "File operation failed"));
+        }
 }

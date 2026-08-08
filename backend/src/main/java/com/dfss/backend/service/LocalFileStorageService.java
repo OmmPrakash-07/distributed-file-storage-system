@@ -1,5 +1,6 @@
 package com.dfss.backend.service;
 
+import com.dfss.backend.dto.FileMetadataResponse;
 import com.dfss.backend.dto.FileUploadResponse;
 import com.dfss.backend.dto.StoredFileResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,19 +20,28 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 
+import com.dfss.backend.model.FileMetadata;
+import com.dfss.backend.repository.FileMetadataRepository;
+
+import java.time.LocalDateTime;
+
 @Service
 public class LocalFileStorageService {
 
     private final Path uploadDirectory;
+    private final FileMetadataRepository fileMetadataRepository;
 
     public LocalFileStorageService(
-            @Value("${file.upload-dir:uploads}") String uploadDirectory) throws IOException {
+            @Value("${file.upload-dir:uploads}") String uploadDirectory,
+            FileMetadataRepository fileMetadataRepository) throws IOException {
 
         this.uploadDirectory = Path.of(uploadDirectory)
                 .toAbsolutePath()
                 .normalize();
 
         Files.createDirectories(this.uploadDirectory);
+
+        this.fileMetadataRepository = fileMetadataRepository;
     }
 
     public FileUploadResponse store(MultipartFile file) throws IOException {
@@ -67,6 +77,18 @@ public class LocalFileStorageService {
                 file.getInputStream(),
                 destination,
                 StandardCopyOption.REPLACE_EXISTING);
+
+        FileMetadata metadata = new FileMetadata(
+                fileId,
+                originalFileName,
+                storedFileName,
+                file.getContentType(),
+                file.getSize(),
+                "LOCAL",
+                destination.toString(),
+                LocalDateTime.now());
+
+        fileMetadataRepository.save(metadata);
 
         return new FileUploadResponse(
                 fileId,
@@ -168,5 +190,21 @@ public class LocalFileStorageService {
         }
 
         return fileName.substring(dotPosition);
+    }
+
+    public List<FileMetadataResponse> listMetadata() {
+
+        return fileMetadataRepository.findAll()
+            .stream()
+            .map(metadata -> new FileMetadataResponse(
+                metadata.getOriginalFileName(),
+                metadata.getFileId(),
+                metadata.getStoredFileName(),
+                metadata.getContentType(),
+                metadata.getSize(),
+                metadata.getStorageProvider(),
+                metadata.getStoragePath(),
+                metadata.getUploadedAt()))
+            .toList();
     }
 }
