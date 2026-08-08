@@ -156,29 +156,29 @@ public class LocalFileStorageService {
         }
     }
 
-    public void deleteFile(String storedFileName) throws IOException {
+    public void deleteFileById(String fileId) throws IOException {
 
-        String safeFileName = Path.of(storedFileName)
-                .getFileName()
-                .toString();
+        FileMetadata metadata = fileMetadataRepository
+                .findById(fileId)
+                .orElseThrow(() -> new FileNotFoundException("File metadata not found"));
 
-        if (!safeFileName.equals(storedFileName)) {
-            throw new IllegalArgumentException("Invalid file name");
-        }
+        String storedFileName = metadata.getStoredFileName();
 
         Path filePath = uploadDirectory
-                .resolve(safeFileName)
+                .resolve(storedFileName)
                 .normalize();
 
         if (!filePath.startsWith(uploadDirectory)) {
             throw new IllegalArgumentException("Invalid file path");
         }
 
-        if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
-            throw new FileNotFoundException("File not found");
+        if (!Files.exists(filePath)) {
+            throw new FileNotFoundException("Physical file not found");
         }
 
         Files.delete(filePath);
+
+        fileMetadataRepository.delete(metadata);
     }
 
     private String getExtension(String fileName) {
@@ -195,16 +195,52 @@ public class LocalFileStorageService {
     public List<FileMetadataResponse> listMetadata() {
 
         return fileMetadataRepository.findAll()
-            .stream()
-            .map(metadata -> new FileMetadataResponse(
-                metadata.getOriginalFileName(),
+                .stream()
+                .map(metadata -> new FileMetadataResponse(
+                        metadata.getFileId(),
+                        metadata.getOriginalFileName(),
+                        metadata.getStoredFileName(),
+                        metadata.getContentType(),
+                        metadata.getSize(),
+                        metadata.getStorageProvider(),
+                        metadata.getStoragePath(),
+                        metadata.getUploadedAt()))
+                .toList();
+    }
+
+    public FileMetadataResponse getMetadataById(String fileId)
+            throws FileNotFoundException {
+
+        FileMetadata metadata = fileMetadataRepository
+                .findById(fileId)
+                .orElseThrow(() -> new FileNotFoundException("File metadata not found"));
+
+        return new FileMetadataResponse(
                 metadata.getFileId(),
+                metadata.getOriginalFileName(),
                 metadata.getStoredFileName(),
                 metadata.getContentType(),
                 metadata.getSize(),
                 metadata.getStorageProvider(),
                 metadata.getStoragePath(),
-                metadata.getUploadedAt()))
-            .toList();
+                metadata.getUploadedAt());
+    }
+
+    public Resource loadFileById(String fileId) throws IOException {
+
+        FileMetadata metadata = fileMetadataRepository
+                .findById(fileId)
+                .orElseThrow(() -> new FileNotFoundException("File metadata not found"));
+
+        return loadFile(metadata.getStoredFileName());
+    }
+
+    public String getOriginalFileName(String fileId)
+            throws FileNotFoundException {
+
+        return fileMetadataRepository
+                .findById(fileId)
+                .map(FileMetadata::getOriginalFileName)
+                .orElseThrow(() -> new FileNotFoundException("File metadata not found"));
     }
 }

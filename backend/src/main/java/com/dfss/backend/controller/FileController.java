@@ -68,17 +68,43 @@ public class FileController {
                                 .body(resource);
         }
 
-        @DeleteMapping("/{storedFileName:.+}")
-        public ResponseEntity<Map<String, Object>> deleteFile(
-                        @PathVariable String storedFileName) throws IOException {
+        @GetMapping("/metadata/{fileId}")
+        public ResponseEntity<FileMetadataResponse> getFileMetadata(
+                        @PathVariable String fileId) throws IOException {
 
-                fileStorageService.deleteFile(storedFileName);
+                return ResponseEntity.ok(
+                                fileStorageService.getMetadataById(fileId));
+        }
+
+        @GetMapping("/download/{fileId}")
+        public ResponseEntity<Resource> downloadFileById(
+                        @PathVariable String fileId) throws IOException {
+
+                Resource resource = fileStorageService.loadFileById(fileId);
+
+                String originalFileName = fileStorageService.getOriginalFileName(fileId);
+
+                return ResponseEntity.ok()
+                                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                                .header(
+                                                HttpHeaders.CONTENT_DISPOSITION,
+                                                "attachment; filename=\"" +
+                                                                originalFileName +
+                                                                "\"")
+                                .body(resource);
+        }
+
+        @DeleteMapping("/{fileId}")
+        public ResponseEntity<Map<String, Object>> deleteFile(
+                        @PathVariable String fileId) throws IOException {
+
+                fileStorageService.deleteFileById(fileId);
 
                 return ResponseEntity.ok(
                                 Map.of(
                                                 "success", true,
                                                 "message", "File deleted successfully",
-                                                "storedFileName", storedFileName));
+                                                "fileId", fileId));
         }
 
         @ExceptionHandler(IllegalArgumentException.class)
