@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { deleteFile, downloadFile, getFiles, uploadFile } from "./api";
+import {
+  deleteFile,
+  downloadFile,
+  getFiles,
+  getHealth,
+  uploadFile,
+} from "./api";
 
 import "./App.css";
 
 function App() {
   const [files, setFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [backendOnline, setBackendOnline] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -35,25 +42,27 @@ function App() {
   useEffect(() => {
     let cancelled = false;
 
-    getFiles()
-      .then((data) => {
-        if (!cancelled) {
+    Promise.allSettled([getFiles(), getHealth()]).then(
+      ([filesResult, healthResult]) => {
+        if (cancelled) {
+          return;
+        }
+
+        if (filesResult.status === "fulfilled") {
+          const data = filesResult.value;
+
           setFiles(Array.isArray(data) ? data : []);
           setError("");
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-
-        if (!cancelled) {
+        } else {
+          console.error(filesResult.reason);
           setError("Unable to load files from the backend.");
         }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
+
+        setBackendOnline(healthResult.status === "fulfilled");
+
+        setLoading(false);
+      },
+    );
 
     return () => {
       cancelled = true;
@@ -188,9 +197,12 @@ function App() {
           </p>
         </div>
 
-        <div className="backend-status">
+        <div
+          className={`backend-status ${backendOnline ? "online" : "offline"}`}
+        >
           <span className="status-dot" />
-          Backend
+
+          {backendOnline ? "Backend Online" : "Backend Offline"}
         </div>
       </header>
 
@@ -207,8 +219,8 @@ function App() {
           </div>
 
           <div className="stat-card">
-            <span>Upload provider</span>
-            <strong>AWS S3</strong>
+            <span>Storage Providers</span>
+            <strong>Local + S3</strong>
           </div>
         </section>
 

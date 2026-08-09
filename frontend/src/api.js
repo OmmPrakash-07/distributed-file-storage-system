@@ -31,4 +31,9 @@ export const downloadFile = async (fileId) => {
   return response.data
 }
 
+export const getHealth = async () => {
+  const response = await api.get('/health')
+  return response.data
+}
+
 export default api

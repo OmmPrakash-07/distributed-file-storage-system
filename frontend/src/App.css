@@ -39,22 +39,37 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #d1fae5;
-  background: #ecfdf5;
-  color: #047857;
   border-radius: 999px;
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 700;
 }
 
+.backend-status.online {
+  border: 1px solid #d1fae5;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.backend-status.offline {
+  border: 1px solid #fecdd3;
+  background: #fff1f2;
+  color: #be123c;
+}
+
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+}
+
+.backend-status.online .status-dot {
   background: #10b981;
 }
 
+.backend-status.offline .status-dot {
+  background: #f43f5e;
+}
 .container {
   width: min(1200px, calc(100% - 48px));
   margin: 32px auto 60px;
