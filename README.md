@@ -1,32 +1,67 @@
 # Distributed File Storage System (DFSS)
 
-A submission-focused Distributed File Storage System built with Spring Boot and React/Vite.
+A full-stack MVP for storing, listing, downloading, and deleting files using Local and AWS S3 storage.
 
-## Current Status
+## Live Deployment
 
-**Last updated:** 2026-08-09  
-**Backend MVP status:** COMPLETE / FROZEN FOR FRONTEND WORK
+- Frontend: https://distributed-file-storage-system-ten.vercel.app/
+- Backend: https://distributed-file-storage-system-production.up.railway.app/
+- Health API: https://distributed-file-storage-system-production.up.railway.app/api/health
 
-### Completed backend capabilities
-- Spring Boot REST API
-- UUID-based file IDs
-- Multipart file upload
-- H2 metadata persistence
-- Database-backed file listing
-- Metadata lookup by `fileId`
-- Download by `fileId`
-- Delete by `fileId`
-- Physical file + metadata deletion synchronization
-- `StorageService` abstraction
-- `StorageServiceManager`
-- `LocalStorageService`
-- `S3StorageService`
-- AWS S3 upload/download/delete
-- Provider-aware routing for LOCAL and S3 files
-- H2 Console for development
-- Development security configuration
-- Multipart upload limits
-- Git ignore rules for runtime/generated artifacts
+## Project Status
+
+**MVP COMPLETE — 2026-08-09**
+
+### Backend
+- Spring Boot REST API ✅
+- Java 21 ✅
+- H2 metadata database ✅
+- Local filesystem storage ✅
+- AWS S3 storage ✅
+- StorageService abstraction ✅
+- StorageServiceManager provider routing ✅
+- Upload/List/Metadata/Download/Delete ✅
+- Railway deployment ✅
+
+### Frontend
+- React + Vite ✅
+- Axios API layer ✅
+- Dashboard ✅
+- File upload/listing ✅
+- LOCAL/S3 provider badges ✅
+- Download/Delete/Refresh ✅
+- Loading/error/success states ✅
+- Backend health indicator ✅
+- Vercel deployment ✅
+
+### Production Integration
+- Vercel → Railway ✅
+- Railway → H2 ✅
+- Railway → AWS S3 ✅
+- Production upload/download/delete ✅
+- Full browser flow ✅
+
+## Architecture
+
+```text
+React + Vite (Vercel)
+        |
+        | /api/*
+        v
+Spring Boot REST API (Railway)
+        |
+        +--------------------+
+        |                    |
+        v                    v
+H2 Metadata DB        StorageServiceManager
+                             |
+                      +------+------+
+                      |             |
+                      v             v
+                 LOCAL Storage    AWS S3
+```
+
+New uploads use the configured active provider. Existing files use the `storageProvider` stored with their metadata, so LOCAL and S3 records can coexist.
 
 ## Tech Stack
 
@@ -34,297 +69,240 @@ A submission-focused Distributed File Storage System built with Spring Boot and 
 - Java 21
 - Spring Boot 4.1.x
 - Spring Web MVC
-- Spring Security
 - Spring Data JPA
-- H2 Database
+- Spring Security
+- H2
 - AWS SDK for Java 2.x
 - AWS S3
-- Maven / Maven Wrapper
+- Maven
 
 ### Frontend
 - React
 - Vite
+- Axios
+- CSS
 
-## Architecture
-
-```text
-React Frontend
-      ↓
-Spring Boot REST API
-      ↓
-FileController
-      ↓
-LocalFileStorageService
-(metadata + orchestration)
-      ↓
-StorageServiceManager
-      ↓
-StorageService
-   ↙             ↘
-LOCAL             S3
-   ↓               ↓
-LocalStorage    AWS S3
-      ↓
-H2 Metadata Database
-```
-
-New uploads use the active provider in `storage.provider`. Existing files are downloaded/deleted using the provider stored in each metadata record.
+### Deployment
+- Frontend: Vercel
+- Backend: Railway
+- Object storage: AWS S3
 
 ## API Endpoints
 
-```text
-GET     /api/health
-POST    /api/files/upload
-GET     /api/files
-GET     /api/files/metadata/{fileId}
-GET     /api/files/download/{fileId}
-DELETE  /api/files/{fileId}
-```
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/health` | Backend health check |
+| POST | `/api/files/upload` | Upload file |
+| GET | `/api/files` | List metadata |
+| GET | `/api/files/metadata/{fileId}` | Get metadata |
+| GET | `/api/files/download/{fileId}` | Download file |
+| DELETE | `/api/files/{fileId}` | Delete file and metadata |
 
-## AWS S3
-
-Bucket:
+## Main Backend Structure
 
 ```text
-dfss-omm-prakash-2026-001
+backend/src/main/java/com/dfss/backend/
+├── config/
+│   ├── AwsS3Config.java
+│   └── SecurityConfig.java
+├── controller/
+│   ├── FileController.java
+│   └── HealthController.java
+├── dto/
+├── model/
+│   └── FileMetadata.java
+├── repository/
+│   └── FileMetadataRepository.java
+└── service/
+    ├── StorageService.java
+    ├── StorageServiceManager.java
+    ├── LocalStorageService.java
+    ├── S3StorageService.java
+    └── LocalFileStorageService.java
 ```
 
-Region:
+## Frontend Structure
 
 ```text
-ap-southeast-2
-Asia Pacific (Sydney)
+frontend/src/
+├── api.js
+├── App.jsx
+├── App.css
+├── index.css
+└── main.jsx
 ```
 
-Properties:
+## Local Development
 
-```properties
-storage.provider=s3
-aws.s3.region=ap-southeast-2
-aws.s3.bucket=dfss-omm-prakash-2026-001
-```
-
-Do not commit AWS access keys or secret keys.
-
-Useful commands:
+Backend:
 
 ```powershell
-aws login
-aws sts get-caller-identity
-aws s3api head-bucket --bucket dfss-omm-prakash-2026-001 --region ap-southeast-2
-aws s3 ls s3://dfss-omm-prakash-2026-001/
-```
-
-## H2 Configuration
-
-```properties
-spring.datasource.url=jdbc:h2:file:./data/dfss
-spring.datasource.driver-class-name=org.h2.Driver
-spring.datasource.username=sa
-spring.datasource.password=
-
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=false
-
-spring.h2.console.enabled=true
-spring.h2.console.path=/h2-console
-server.servlet.session.persistent=false
-```
-
-Console:
-
-```text
-http://localhost:8080/h2-console
-```
-
-Useful SQL:
-
-```sql
-SELECT * FROM FILE_METADATA;
-```
-
-## Tests Completed
-
-### Local storage
-- Backend startup ✅
-- Health endpoint ✅
-- Local upload ✅
-- H2 metadata save ✅
-- Database-backed listing ✅
-- Metadata lookup by `fileId` ✅
-- Download by `fileId` ✅
-- Delete by `fileId` ✅
-- Physical file removal ✅
-- H2 metadata removal ✅
-- `fileId` / `originalFileName` mapping bug fixed ✅
-
-### Storage abstraction
-- `StorageService` interface ✅
-- `LocalStorageService` ✅
-- `StorageServiceManager` ✅
-- LOCAL file remains downloadable while active provider is S3 ✅
-
-### AWS S3
-Real test file ID:
-
-```text
-1f67607f-a3c4-45e5-bc92-cb17d419b1ab
-```
-
-Passed:
-- S3 upload ✅
-- `storageProvider = S3` metadata ✅
-- `s3://...` storage path ✅
-- Object visible in bucket ✅
-- Metadata lookup ✅
-- S3 download through API ✅
-- Downloaded content matched original ✅
-- S3 delete through API ✅
-- H2 metadata removed after delete ✅
-- S3 object removed after delete ✅
-
-Verified downloaded content:
-
-```text
-S3 credentials fixed test
-```
-
-## Known / Deferred Items
-
-Not part of current MVP:
-- Production authentication / authorization
-- PostgreSQL migration
-- File sharing
-- Chunked upload
-- Replication
-- Encryption management
-- Google Cloud Storage
-- Redis
-- Kubernetes
-- Advanced distributed algorithms
-
-Current Spring Security configuration is development-only.
-
-## Running the Backend
-
-```powershell
-cd "E:\Project\Distributed-File-Storage-System\backend"
+cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
-Expected:
-
-```text
-Tomcat started on port 8080
-Started BackendApplication
-```
-
-## Compile Check
+Frontend:
 
 ```powershell
-cd "E:\Project\Distributed-File-Storage-System\backend"
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend runs at `http://localhost:5173` and backend at `http://localhost:8080`.
+
+## Deployment Configuration
+
+Example backend properties:
+
+```properties
+server.port=${PORT:8080}
+server.address=0.0.0.0
+
+spring.datasource.url=jdbc:h2:file:${DFSS_DATA_PATH:./data/dfss}
+
+storage.provider=${STORAGE_PROVIDER:s3}
+aws.s3.region=${AWS_REGION:ap-southeast-2}
+aws.s3.bucket=${AWS_S3_BUCKET:dfss-omm-prakash-2026-001}
+```
+
+Railway production variables include:
+
+```text
+STORAGE_PROVIDER=s3
+AWS_REGION=ap-southeast-2
+AWS_S3_BUCKET=dfss-omm-prakash-2026-001
+AWS_ACCESS_KEY_ID=<secret>
+AWS_SECRET_ACCESS_KEY=<secret>
+```
+
+Never commit AWS secrets.
+
+Vercel rewrite:
+
+```json
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://distributed-file-storage-system-production.up.railway.app/api/:path*"
+    }
+  ]
+}
+```
+
+## Verified Tests
+
+### Local
+- Health ✅
+- Upload ✅
+- List ✅
+- Metadata ✅
+- Download ✅
+- Delete ✅
+- H2 metadata persistence ✅
+- LOCAL storage ✅
+- S3 storage ✅
+- Provider-aware routing ✅
+
+### Production
+- Railway health endpoint ✅
+- Railway files endpoint ✅
+- Railway → S3 upload ✅
+- Railway → S3 download ✅
+- Railway → S3 delete ✅
+- Vercel frontend ✅
+- Vercel → Railway integration ✅
+- Browser upload/list/download/delete ✅
+
+## Build Verification
+
+Frontend:
+
+```powershell
+cd frontend
+npm run lint
+npm run build
+```
+
+Backend:
+
+```powershell
+cd backend
 .\mvnw.cmd clean compile
 ```
 
+## MVP Scope
+
+Included:
+- Upload
+- List
+- Metadata
+- Download
+- Delete
+- LOCAL storage
+- AWS S3
+- H2 metadata
+- React frontend
+- Spring Boot backend
+- Deployment
+- Basic error handling
+
+Deferred:
+- Login/signup
+- Role-based access
+- File sharing
+- Chunked uploads
+- Replication
+- PostgreSQL
+- Redis
+- GCS
+- Kubernetes
+- Advanced distributed algorithms
+
+## Security Notes
+
+- Never commit AWS credentials.
+- Do not use root-account access keys.
+- Use least-privilege IAM credentials for the DFSS bucket.
+- Current Spring Security configuration is development-oriented.
+- H2 is suitable for the MVP but not ideal for a larger production system.
+
+## Submission Checklist
+
+- [x] Backend source
+- [x] Frontend source
+- [x] Local storage
+- [x] AWS S3 storage
+- [x] Storage abstraction
+- [x] H2 metadata
+- [x] REST API
+- [x] React dashboard
+- [x] Production frontend
+- [x] Production backend
+- [x] Production S3 integration
+- [x] Build verification
+- [x] README
+- [ ] Final screenshots
+- [ ] Demo video (optional)
+- [ ] Final Git cleanliness check
+
+## Final Git Check
+
+```powershell
+git status
+git log --oneline -5
+```
+
 Expected:
 
 ```text
-BUILD SUCCESS
+On branch main
+Your branch is up to date with 'origin/main'.
+
+nothing to commit, working tree clean
 ```
 
-## Git Ignore
+## Final Result
 
-Make sure these are ignored:
-
-```gitignore
-.vscode/
-
-backend/target/
-backend/data/
-*.mv.db
-*.trace.db
-backend/uploads/
-
-metadata-test.txt
-metadata-test-2.txt
-storage-test.txt
-storage-download-test.txt
-download-test.txt
-local-after-s3-test.txt
-s3-test.txt
-s3-real-test.txt
-s3-real-test-2.txt
-s3-download-test.txt
-
-README_DFSS_*.md
-```
-
-Do not ignore:
-- `backend/.mvn/`
-- `backend/mvnw`
-- `backend/mvnw.cmd`
-- `backend/pom.xml`
-- `README.md`
-
-## Next Session Starting Point
-
-### React Frontend MVP
-
-The backend should now remain frozen unless a real integration defect appears.
-
-Next steps:
-1. Inspect the existing React/Vite frontend.
-2. Add backend API base configuration.
-3. Build a simple dashboard.
-4. Add file upload UI.
-5. Add file list/table.
-6. Show filename, type, size, storage provider and upload time.
-7. Add Download action.
-8. Add Delete action.
-9. Add loading, success and error states.
-10. Fix CORS only if frontend integration exposes an issue.
-11. Run complete browser workflow.
-12. Final UI cleanup and submission documentation.
-
-## MVP Scope Lock
-
-Included:
-
-```text
-Upload
-List
-Metadata
-Download
-Delete
-LOCAL storage
-AWS S3 storage
-H2 metadata
-React frontend
-Spring Boot backend
-Basic errors
-README
-Deployment
-```
-
-Deferred until after MVP:
-
-```text
-Login/signup
-Roles
-Sharing
-Replication
-Chunking
-GCS
-PostgreSQL
-Redis
-Docker/Kubernetes
-Advanced distributed algorithms
-```
-
-## Current Milestone
-
-**BACKEND MVP COMPLETE**
-
-Next milestone:
-
-**React Frontend MVP + Backend Integration**
+The DFSS MVP provides a working storage abstraction over local and AWS S3 storage, persists metadata in H2, exposes REST APIs with Spring Boot, and provides a deployed React interface for the complete file lifecycle.

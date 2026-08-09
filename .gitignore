@@ -24,3 +24,8 @@ s3-download-test.txt
 
 # Temporary generated README copies
 README_DFSS_*.md
+
+# Railway deployment test files
+railway-s3-test.txt
+railway-download-test.txt
+README_FINAL_DFSS_*.md
