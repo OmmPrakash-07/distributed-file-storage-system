@@ -55,3 +55,13 @@ download-test.txt
 
 # Temporary generated README copies
 README_DFSS_*.md
+
+local-after-s3-test.txt
+s3-test.txt
+s3-real-test.txt
+s3-real-test-2.txt
+s3-download-test.txt
+storage-test.txt
+storage-download-test.txt
+backend/uploads/
+backend/data/

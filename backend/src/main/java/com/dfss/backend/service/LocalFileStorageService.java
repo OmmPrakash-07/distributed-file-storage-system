@@ -19,14 +19,14 @@ import java.util.UUID;
 @Service
 public class LocalFileStorageService {
 
-    private final StorageService storageService;
+    private final StorageServiceManager storageServiceManager;
     private final FileMetadataRepository fileMetadataRepository;
 
     public LocalFileStorageService(
-            StorageService storageService,
+            StorageServiceManager storageServiceManager,
             FileMetadataRepository fileMetadataRepository
     ) {
-        this.storageService = storageService;
+        this.storageServiceManager = storageServiceManager;
         this.fileMetadataRepository = fileMetadataRepository;
     }
 
@@ -58,6 +58,12 @@ public class LocalFileStorageService {
 
         String storedFileName =
                 fileId + extension;
+
+        // Use the currently configured provider
+        // for NEW uploads.
+        StorageService storageService =
+                storageServiceManager
+                        .getActiveStorageService();
 
         String storagePath =
                 storageService.store(
@@ -147,6 +153,15 @@ public class LocalFileStorageService {
                                 )
                         );
 
+        // Important:
+        // Use the provider saved with this file,
+        // not the currently active provider.
+        StorageService storageService =
+                storageServiceManager
+                        .getStorageService(
+                                metadata.getStorageProvider()
+                        );
+
         return storageService.load(
                 metadata.getStoredFileName()
         );
@@ -179,6 +194,14 @@ public class LocalFileStorageService {
                                 )
                         );
 
+        // Delete from the provider where the file
+        // was originally stored.
+        StorageService storageService =
+                storageServiceManager
+                        .getStorageService(
+                                metadata.getStorageProvider()
+                        );
+
         storageService.delete(
                 metadata.getStoredFileName()
         );
@@ -194,8 +217,7 @@ public class LocalFileStorageService {
                 fileName.lastIndexOf('.');
 
         if (dotPosition < 0
-                || dotPosition ==
-                fileName.length() - 1) {
+                || dotPosition == fileName.length() - 1) {
 
             return "";
         }

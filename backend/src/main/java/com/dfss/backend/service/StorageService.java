@@ -12,9 +12,11 @@ public interface StorageService {
             String storedFileName
     ) throws IOException;
 
-    Resource load(String storedFileName) throws IOException;
+    Resource load(String storedFileName)
+            throws IOException;
 
-    void delete(String storedFileName) throws IOException;
+    void delete(String storedFileName)
+            throws IOException;
 
     boolean exists(String storedFileName);
 
