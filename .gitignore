@@ -1,0 +1,26 @@
+# VS Code
+.vscode/
+
+# Backend build/runtime
+backend/target/
+backend/data/
+backend/uploads/
+
+# H2
+*.mv.db
+*.trace.db
+
+# Local test files
+metadata-test.txt
+metadata-test-2.txt
+storage-test.txt
+storage-download-test.txt
+download-test.txt
+local-after-s3-test.txt
+s3-test.txt
+s3-real-test.txt
+s3-real-test-2.txt
+s3-download-test.txt
+
+# Temporary generated README copies
+README_DFSS_*.md
