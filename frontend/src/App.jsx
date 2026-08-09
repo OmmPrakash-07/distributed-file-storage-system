@@ -31,9 +31,12 @@ function App() {
       const data = await getFiles();
 
       setFiles(Array.isArray(data) ? data : []);
+      setBackendOnline(true);
     } catch (err) {
-      console.error(err);
+      console.error("Load files error:", err);
+
       setError("Unable to load files from the backend.");
+      setBackendOnline(false);
     } finally {
       setLoading(false);
     }
@@ -42,27 +45,39 @@ function App() {
   useEffect(() => {
     let cancelled = false;
 
-    Promise.allSettled([getFiles(), getHealth()]).then(
-      ([filesResult, healthResult]) => {
-        if (cancelled) {
-          return;
-        }
+    Promise.allSettled([
+      getFiles(),
+      getHealth(),
+    ]).then(([filesResult, healthResult]) => {
+      if (cancelled) {
+        return;
+      }
 
-        if (filesResult.status === "fulfilled") {
-          const data = filesResult.value;
+      if (filesResult.status === "fulfilled") {
+        const data = filesResult.value;
 
-          setFiles(Array.isArray(data) ? data : []);
-          setError("");
-        } else {
-          console.error(filesResult.reason);
-          setError("Unable to load files from the backend.");
-        }
+        setFiles(
+          Array.isArray(data)
+            ? data
+            : [],
+        );
+      } else {
+        console.error(
+          "Initial file load error:",
+          filesResult.reason,
+        );
 
-        setBackendOnline(healthResult.status === "fulfilled");
+        setError(
+          "Unable to load files from the backend.",
+        );
+      }
 
-        setLoading(false);
-      },
-    );
+      setBackendOnline(
+        healthResult.status === "fulfilled",
+      );
+
+      setLoading(false);
+    });
 
     return () => {
       cancelled = true;
@@ -70,31 +85,73 @@ function App() {
   }, []);
 
   const totalSize = useMemo(() => {
-    return files.reduce((total, file) => total + (file.size || 0), 0);
+    return files.reduce(
+      (total, file) =>
+        total + (file.size || 0),
+      0,
+    );
   }, [files]);
 
   const formatSize = (bytes = 0) => {
-    if (bytes === 0) return "0 B";
+    if (bytes === 0) {
+      return "0 B";
+    }
 
-    const units = ["B", "KB", "MB", "GB"];
-    const index = Math.floor(Math.log(bytes) / Math.log(1024));
+    const units = [
+      "B",
+      "KB",
+      "MB",
+      "GB",
+    ];
 
-    const value = bytes / Math.pow(1024, index);
+    const index = Math.min(
+      Math.floor(
+        Math.log(bytes) /
+          Math.log(1024),
+      ),
+      units.length - 1,
+    );
 
-    return `${value.toFixed(index === 0 ? 0 : 2)} ${units[index]}`;
+    const value =
+      bytes /
+      Math.pow(1024, index);
+
+    return `${value.toFixed(
+      index === 0 ? 0 : 2,
+    )} ${units[index]}`;
   };
 
   const formatDate = (date) => {
-    if (!date) return "-";
+    if (!date) {
+      return "-";
+    }
 
-    return new Date(date).toLocaleString();
+    return new Date(
+      date,
+    ).toLocaleString();
   };
 
-  const handleUpload = async (event) => {
+  const handleUpload = async (
+    event,
+  ) => {
     event.preventDefault();
 
     if (!selectedFile) {
-      setError("Please choose a file first.");
+      setError(
+        "Please choose a file first.",
+      );
+
+      return;
+    }
+
+    if (
+      selectedFile.size >
+      25 * 1024 * 1024
+    ) {
+      setError(
+        "File is larger than the 25 MB upload limit.",
+      );
+
       return;
     }
 
@@ -103,12 +160,21 @@ function App() {
       setError("");
       setMessage("");
 
-      await uploadFile(selectedFile);
+      await uploadFile(
+        selectedFile,
+      );
 
-      setMessage("File uploaded successfully.");
+      setMessage(
+        "File uploaded successfully.",
+      );
+
       setSelectedFile(null);
+      setBackendOnline(true);
 
-      const input = document.getElementById("file-input");
+      const input =
+        document.getElementById(
+          "file-input",
+        );
 
       if (input) {
         input.value = "";
@@ -116,71 +182,193 @@ function App() {
 
       await loadFiles();
     } catch (err) {
-      console.error(err);
+      console.error(
+        "Upload error:",
+        err,
+      );
 
-      const backendMessage =
-        err.response?.data?.message || "File upload failed.";
+      const status =
+        err.response?.status;
 
-      setError(backendMessage);
+      const responseData =
+        err.response?.data;
+
+      let backendMessage =
+        "Unknown upload error";
+
+      if (
+        typeof responseData ===
+        "string"
+      ) {
+        backendMessage =
+          responseData;
+      } else if (
+        responseData?.message
+      ) {
+        backendMessage =
+          responseData.message;
+      } else if (
+        responseData?.error
+      ) {
+        backendMessage =
+          responseData.error;
+      } else if (err.message) {
+        backendMessage =
+          err.message;
+      }
+
+      if (
+        err.code ===
+          "ERR_NETWORK" ||
+        err.message ===
+          "Network Error"
+      ) {
+        setBackendOnline(false);
+
+        setError(
+          "Upload failed: Network Error. The browser could not reach the backend.",
+        );
+      } else if (status) {
+        setError(
+          `Upload failed (${status}): ${backendMessage}`,
+        );
+      } else {
+        setError(
+          `Upload failed: ${backendMessage}`,
+        );
+      }
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDownload = async (file) => {
+  const handleDownload = async (
+    file,
+  ) => {
     try {
-      setDownloadingId(file.fileId);
+      setDownloadingId(
+        file.fileId,
+      );
+
       setError("");
       setMessage("");
 
-      const blob = await downloadFile(file.fileId);
+      const blob =
+        await downloadFile(
+          file.fileId,
+        );
 
-      const url = window.URL.createObjectURL(blob);
+      const url =
+        window.URL.createObjectURL(
+          blob,
+        );
 
-      const link = document.createElement("a");
+      const link =
+        document.createElement(
+          "a",
+        );
 
       link.href = url;
-      link.download = file.originalFileName || "download";
-      document.body.appendChild(link);
+
+      link.download =
+        file.originalFileName ||
+        "download";
+
+      document.body.appendChild(
+        link,
+      );
 
       link.click();
       link.remove();
 
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(
+        url,
+      );
 
-      setMessage(`Downloaded ${file.originalFileName}`);
+      setMessage(
+        `Downloaded ${file.originalFileName}`,
+      );
+
+      setBackendOnline(true);
     } catch (err) {
-      console.error(err);
-      setError("Unable to download this file.");
+      console.error(
+        "Download error:",
+        err,
+      );
+
+      const status =
+        err.response?.status;
+
+      setError(
+        status
+          ? `Download failed (${status}).`
+          : "Unable to download this file.",
+      );
     } finally {
       setDownloadingId(null);
     }
   };
 
-  const handleDelete = async (file) => {
-    const confirmed = window.confirm(`Delete "${file.originalFileName}"?`);
+  const handleDelete = async (
+    file,
+  ) => {
+    const confirmed =
+      window.confirm(
+        `Delete "${file.originalFileName}"?`,
+      );
 
     if (!confirmed) {
       return;
     }
 
     try {
-      setDeletingId(file.fileId);
+      setDeletingId(
+        file.fileId,
+      );
+
       setError("");
       setMessage("");
 
-      await deleteFile(file.fileId);
-
-      setFiles((currentFiles) =>
-        currentFiles.filter(
-          (currentFile) => currentFile.fileId !== file.fileId,
-        ),
+      await deleteFile(
+        file.fileId,
       );
 
-      setMessage(`${file.originalFileName} deleted successfully.`);
+      setFiles(
+        (currentFiles) =>
+          currentFiles.filter(
+            (currentFile) =>
+              currentFile.fileId !==
+              file.fileId,
+          ),
+      );
+
+      setMessage(
+        `${file.originalFileName} deleted successfully.`,
+      );
+
+      setBackendOnline(true);
     } catch (err) {
-      console.error(err);
-      setError("Unable to delete this file.");
+      console.error(
+        "Delete error:",
+        err,
+      );
+
+      const status =
+        err.response?.status;
+
+      const backendMessage =
+        err.response?.data
+          ?.message ||
+        err.response?.data
+          ?.error ||
+        err.message ||
+        "Delete failed";
+
+      setError(
+        status
+          ? `Delete failed (${status}): ${backendMessage}`
+          : `Delete failed: ${backendMessage}`,
+      );
     } finally {
       setDeletingId(null);
     }
@@ -190,158 +378,311 @@ function App() {
     <div className="app">
       <header className="header">
         <div>
-          <p className="eyebrow">DFSS</p>
-          <h1>Distributed File Storage System</h1>
+          <p className="eyebrow">
+            DFSS
+          </p>
+
+          <h1>
+            Distributed File
+            Storage System
+          </h1>
+
           <p className="subtitle">
-            Store and manage files across Local and AWS S3 storage.
+            Store and manage files
+            across Local and AWS S3
+            storage.
           </p>
         </div>
 
         <div
-          className={`backend-status ${backendOnline ? "online" : "offline"}`}
+          className={`backend-status ${
+            backendOnline
+              ? "online"
+              : "offline"
+          }`}
         >
           <span className="status-dot" />
 
-          {backendOnline ? "Backend Online" : "Backend Offline"}
+          {backendOnline
+            ? "Backend Online"
+            : "Backend Offline"}
         </div>
       </header>
 
       <main className="container">
         <section className="stats">
           <div className="stat-card">
-            <span>Total files</span>
-            <strong>{files.length}</strong>
+            <span>
+              Total files
+            </span>
+
+            <strong>
+              {files.length}
+            </strong>
           </div>
 
           <div className="stat-card">
-            <span>Total storage</span>
-            <strong>{formatSize(totalSize)}</strong>
+            <span>
+              Total storage
+            </span>
+
+            <strong>
+              {formatSize(
+                totalSize,
+              )}
+            </strong>
           </div>
 
           <div className="stat-card">
-            <span>Storage Providers</span>
-            <strong>Local + S3</strong>
+            <span>
+              Storage Providers
+            </span>
+
+            <strong>
+              Local + S3
+            </strong>
           </div>
         </section>
 
         <section className="panel upload-panel">
           <div className="section-heading">
             <div>
-              <h2>Upload File</h2>
-              <p>Maximum upload size: 25 MB</p>
+              <h2>
+                Upload File
+              </h2>
+
+              <p>
+                Maximum upload
+                size: 25 MB
+              </p>
             </div>
           </div>
 
-          <form className="upload-form" onSubmit={handleUpload}>
+          <form
+            className="upload-form"
+            onSubmit={
+              handleUpload
+            }
+          >
             <input
               id="file-input"
               type="file"
-              onChange={(event) =>
-                setSelectedFile(event.target.files?.[0] || null)
+              onChange={(
+                event,
+              ) =>
+                setSelectedFile(
+                  event.target
+                    .files?.[0] ||
+                    null,
+                )
               }
             />
 
             <button
               className="primary-button"
               type="submit"
-              disabled={uploading}
+              disabled={
+                uploading
+              }
             >
-              {uploading ? "Uploading..." : "Upload"}
+              {uploading
+                ? "Uploading..."
+                : "Upload"}
             </button>
           </form>
 
           {selectedFile && (
             <div className="selected-file">
-              <strong>{selectedFile.name}</strong>
-              <span>{formatSize(selectedFile.size)}</span>
+              <strong>
+                {
+                  selectedFile.name
+                }
+              </strong>
+
+              <span>
+                {formatSize(
+                  selectedFile.size,
+                )}
+              </span>
             </div>
           )}
         </section>
 
-        {message && <div className="message success">{message}</div>}
+        {message && (
+          <div className="message success">
+            {message}
+          </div>
+        )}
 
-        {error && <div className="message error">{error}</div>}
+        {error && (
+          <div className="message error">
+            {error}
+          </div>
+        )}
 
         <section className="panel">
           <div className="section-heading">
             <div>
               <h2>Files</h2>
-              <p>Metadata stored in H2 database.</p>
+
+              <p>
+                Metadata stored
+                in H2 database.
+              </p>
             </div>
 
-            <button className="secondary-button" onClick={loadFiles}>
-              Refresh
+            <button
+              className="secondary-button"
+              onClick={
+                loadFiles
+              }
+              disabled={
+                loading
+              }
+            >
+              {loading
+                ? "Refreshing..."
+                : "Refresh"}
             </button>
           </div>
 
           {loading ? (
-            <div className="empty-state">Loading files...</div>
-          ) : files.length === 0 ? (
-            <div className="empty-state">No files uploaded yet.</div>
+            <div className="empty-state">
+              Loading files...
+            </div>
+          ) : files.length ===
+            0 ? (
+            <div className="empty-state">
+              No files uploaded
+              yet.
+            </div>
           ) : (
             <div className="table-wrapper">
               <table>
                 <thead>
                   <tr>
-                    <th>File</th>
-                    <th>Type</th>
-                    <th>Size</th>
-                    <th>Storage</th>
-                    <th>Uploaded</th>
-                    <th>Actions</th>
+                    <th>
+                      File
+                    </th>
+
+                    <th>
+                      Type
+                    </th>
+
+                    <th>
+                      Size
+                    </th>
+
+                    <th>
+                      Storage
+                    </th>
+
+                    <th>
+                      Uploaded
+                    </th>
+
+                    <th>
+                      Actions
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {files.map((file) => (
-                    <tr key={file.fileId}>
-                      <td>
-                        <div className="file-name">{file.originalFileName}</div>
+                  {files.map(
+                    (file) => (
+                      <tr
+                        key={
+                          file.fileId
+                        }
+                      >
+                        <td>
+                          <div className="file-name">
+                            {
+                              file.originalFileName
+                            }
+                          </div>
 
-                        <div className="file-id">{file.fileId}</div>
-                      </td>
+                          <div className="file-id">
+                            {
+                              file.fileId
+                            }
+                          </div>
+                        </td>
 
-                      <td>{file.contentType || "Unknown"}</td>
+                        <td>
+                          {file.contentType ||
+                            "Unknown"}
+                        </td>
 
-                      <td>{formatSize(file.size)}</td>
+                        <td>
+                          {formatSize(
+                            file.size,
+                          )}
+                        </td>
 
-                      <td>
-                        <span
-                          className={`provider ${
-                            file.storageProvider === "S3" ? "s3" : "local"
-                          }`}
-                        >
-                          {file.storageProvider}
-                        </span>
-                      </td>
-
-                      <td>{formatDate(file.uploadedAt)}</td>
-
-                      <td>
-                        <div className="actions">
-                          <button
-                            className="download-button"
-                            disabled={downloadingId === file.fileId}
-                            onClick={() => handleDownload(file)}
+                        <td>
+                          <span
+                            className={`provider ${
+                              file.storageProvider ===
+                              "S3"
+                                ? "s3"
+                                : "local"
+                            }`}
                           >
-                            {downloadingId === file.fileId
-                              ? "Downloading..."
-                              : "Download"}
-                          </button>
+                            {
+                              file.storageProvider
+                            }
+                          </span>
+                        </td>
 
-                          <button
-                            className="delete-button"
-                            disabled={deletingId === file.fileId}
-                            onClick={() => handleDelete(file)}
-                          >
-                            {deletingId === file.fileId
-                              ? "Deleting..."
-                              : "Delete"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        <td>
+                          {formatDate(
+                            file.uploadedAt,
+                          )}
+                        </td>
+
+                        <td>
+                          <div className="actions">
+                            <button
+                              className="download-button"
+                              disabled={
+                                downloadingId ===
+                                file.fileId
+                              }
+                              onClick={() =>
+                                handleDownload(
+                                  file,
+                                )
+                              }
+                            >
+                              {downloadingId ===
+                              file.fileId
+                                ? "Downloading..."
+                                : "Download"}
+                            </button>
+
+                            <button
+                              className="delete-button"
+                              disabled={
+                                deletingId ===
+                                file.fileId
+                              }
+                              onClick={() =>
+                                handleDelete(
+                                  file,
+                                )
+                              }
+                            >
+                              {deletingId ===
+                              file.fileId
+                                ? "Deleting..."
+                                : "Delete"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ),
+                  )}
                 </tbody>
               </table>
             </div>
