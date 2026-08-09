@@ -45,3 +45,13 @@ backend/uploads/
 
 # Local test files
 metadata-test.txt
+
+# Local development test files
+metadata-test.txt
+metadata-test-2.txt
+storage-test.txt
+storage-download-test.txt
+download-test.txt
+
+# Temporary generated README copies
+README_DFSS_*.md
