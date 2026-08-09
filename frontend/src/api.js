@@ -1,7 +1,11 @@
 import axios from 'axios'
 
+const API_BASE_URL = import.meta.env.PROD
+  ? 'https://distributed-file-storage-system-production.up.railway.app/api'
+  : '/api'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
 })
 
 export const getFiles = async () => {
