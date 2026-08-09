@@ -13,29 +13,39 @@ public class CorsConfig {
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration configuration = new CorsConfiguration();
+        CorsConfiguration config = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of(
+        config.setAllowedOrigins(List.of(
                 "https://distributed-file-storage-system-ten.vercel.app",
                 "http://localhost:5173"
         ));
 
-        configuration.setAllowedMethods(List.of(
+        config.setAllowedMethods(List.of(
                 "GET",
                 "POST",
                 "DELETE",
                 "OPTIONS"
         ));
 
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(false);
+        config.setAllowedHeaders(List.of(
+                "Content-Type",
+                "Accept",
+                "Origin"
+        ));
+
+        config.setExposedHeaders(List.of(
+                "Content-Disposition"
+        ));
+
+        config.setAllowCredentials(false);
+        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
 
         source.registerCorsConfiguration(
                 "/api/**",
-                configuration
+                config
         );
 
         return source;
